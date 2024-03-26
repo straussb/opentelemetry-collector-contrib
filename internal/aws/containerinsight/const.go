@@ -170,7 +170,7 @@ const (
 	TypePodGPU          = "PodGPU"
 	TypeNodeGPU         = "NodeGPU"
 	TypeClusterGPU      = "ClusterGPU"
-	TypeNeuronContainer = "ContainerNeuron"
+	TypeContainerNeuron = "ContainerNeuron"
 	TypeContainerEFA    = "ContainerEFA"
 	TypePodEFA          = "PodEFA"
 	TypeNodeEFA         = "NodeEFA"

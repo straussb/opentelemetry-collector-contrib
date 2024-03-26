@@ -192,7 +192,7 @@ func TestUtils_TagMetricSource(t *testing.T) {
 		ci.TypeInstanceNet,
 		ci.TypeInstanceDiskIO,
 		ci.TypeContainerGPU,
-		ci.TypeNeuronContainer,
+		ci.TypeContainerNeuron,
 	}
 
 	expectedSources := []string{

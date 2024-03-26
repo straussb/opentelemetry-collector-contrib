@@ -345,10 +345,9 @@ func (r *sysfsReaderImpl) EfaDataExists() (bool, error) {
 
 	stat, ok := info.Sys().(*syscall.Stat_t)
 	if !ok {
-		return true, nil
+		r.logger.Warn("Couldn't read permissions of EFA directory, not reading from it", zap.String("path", efaPath))
+		return false, nil
 	}
-
-	fmt.Printf("EFA directory uid: %d, perms: %s\n", stat.Uid, info.Mode().Perm())
 
 	if stat.Uid != 0 {
 		r.logger.Warn("EFA directory exists but is not owned by root, not reading from it", zap.String("path", efaPath), zap.Uint32("owner uid", stat.Uid))
@@ -432,7 +431,7 @@ func readUint64ValueFromFile(path string) (uint64, error) {
 
 // Parse string to UInt64
 func parseUInt64(value string) (uint64, error) {
-	// A base value of zero makes ParseInt infer the correct base using the
+	// A base value of zero makes ParseUint infer the correct base using the
 	// string's prefix, if any.
 	const base = 0
 	v, err := strconv.ParseUint(value, base, 64)

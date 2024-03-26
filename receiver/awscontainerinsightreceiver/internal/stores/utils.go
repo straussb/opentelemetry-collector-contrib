@@ -141,7 +141,7 @@ func tagMetricSourceLinux(metric CIMetric) {
 		sources = []string{"cadvisor"}
 	case ci.TypeContainerGPU:
 		sources = []string{"dcgm", "pod", "calculated"}
-	case ci.TypeNeuronContainer:
+	case ci.TypeContainerNeuron:
 		sources = []string{"neuron", "pod", "calculated"}
 	}
 
