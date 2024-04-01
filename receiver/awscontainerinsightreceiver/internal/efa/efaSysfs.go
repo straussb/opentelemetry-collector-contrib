@@ -143,13 +143,9 @@ func (s *Scraper) GetMetrics() []pmetric.Metrics {
 		podMetric := stores.NewCIMetric(ci.TypePodEFA, s.logger)
 		nodeMetric := stores.NewCIMetric(ci.TypeNodeEFA, s.logger)
 
-		key := metrics.Key{
+		nodeKey := metrics.Key{
 			MetricMetadata: metadata{
-				namespace:     containerInfo.Namespace,
-				podName:       containerInfo.PodName,
-				containerName: containerInfo.ContainerName,
-				deviceName:    string(deviceName),
-				metricName:    metricName,
+				measurement: metricName,
 			},
 		}
 
@@ -184,11 +180,16 @@ func (s *Scraper) GetMetrics() []pmetric.Metrics {
 }
 
 type metadata struct {
+	measurement       string
+	deviceName        string
+	containerMetadata stores.ContainerInfo
+}
+
+type containerMetadata struct {
 	namespace     string
 	podName       string
 	containerName string
 	deviceName    string
-	metricName    string
 }
 
 func (s *Scraper) fillMetric(metric stores.CIMetric, metricType string, namespace string, podName string,
@@ -208,6 +209,47 @@ func (s *Scraper) fillMetric(metric stores.CIMetric, metricType string, namespac
 	}
 }
 
+func (s *Scraper) something(metric stores.CIMetric, containerInfo *stores.ContainerInfo, deviceName string,
+	timestamp time.Time, counters *efaCounters) {
+	measurementValue := map[string]uint64{
+		ci.EfaRdmaReadBytes:      counters.rdmaReadBytes,
+		ci.EfaRdmaWriteBytes:     counters.rdmaWriteBytes,
+		ci.EfaRdmaWriteRecvBytes: counters.rdmaWriteRecvBytes,
+		ci.EfaRxBytes:            counters.rxBytes,
+		ci.EfaRxDropped:          counters.rxDrops,
+		ci.EfaTxBytes:            counters.txBytes,
+	}
+
+	for measurement, value := range measurementValue {
+		nodeKey := metrics.Key{
+			MetricMetadata: metadata{
+				measurement: measurement,
+				deviceName:  deviceName,
+			},
+		}
+		s.fillMetric2(metric, timestamp, &nodeKey, ci.MetricName(ci.TypeNodeEFA, measurement), value)
+
+		if containerInfo != nil {
+			containerKey := metrics.Key{
+				MetricMetadata: metadata{
+					measurement:       measurement,
+					deviceName:        deviceName,
+					containerMetadata: *containerInfo,
+				},
+			}
+			s.fillMetric2(metric, timestamp, &containerKey, ci.MetricName(ci.TypePodEFA, measurement), value)
+			s.fillMetric2(metric, timestamp, &containerKey, ci.MetricName(ci.TypeContainerEFA, measurement), value)
+		}
+	}
+}
+
+func (s *Scraper) fillMetric2(metric stores.CIMetric, timestamp time.Time, cacheKey *metrics.Key, metricName string, metricVal uint64) {
+	deltaValue, found := s.deltaCalculator.Calculate(*cacheKey, metricVal, timestamp)
+	if found {
+		metric.AddField(metricName, deltaValue)
+	}
+}
+
 func (s *Scraper) assignRateValueToField(metricName string, value uint64, metric stores.CIMetric, namespace string,
 	podName string, containerName string, deviceName string, timestamp time.Time) {
 	key := metrics.Key{
@@ -216,7 +258,7 @@ func (s *Scraper) assignRateValueToField(metricName string, value uint64, metric
 			podName:       podName,
 			containerName: containerName,
 			deviceName:    deviceName,
-			metricName:    metricName,
+			measurement:   metricName,
 		},
 	}
 	deltaValue, found := s.deltaCalculator.Calculate(key, value, timestamp)
