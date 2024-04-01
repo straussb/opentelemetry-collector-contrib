@@ -130,17 +130,28 @@ func (s *Scraper) Shutdown() {
 func (s *Scraper) GetMetrics() []pmetric.Metrics {
 	var result []pmetric.Metrics
 
-	// so it's technically
-
 	store := s.store
 	s.logger.Debug("going to populate metrics from devices", zap.Int("numDevices", len(*store.devices)))
 	for deviceName, counters := range *store.devices {
 		containerInfo := s.podResourcesStore.GetContainerInfo(string(deviceName), efaK8sResourceName)
 		s.logger.Debug("containerInfo for device", zap.String("deviceName", string(deviceName)), zap.Any("containerInfo", containerInfo))
 
+		// so container and pod should use the containerInfo for the delta cache no matter what, because you wouldn't
+		// want to accidentally include usage from
+
 		containerMetric := stores.NewCIMetric(ci.TypeContainerEFA, s.logger)
 		podMetric := stores.NewCIMetric(ci.TypePodEFA, s.logger)
 		nodeMetric := stores.NewCIMetric(ci.TypeNodeEFA, s.logger)
+
+		key := metrics.Key{
+			MetricMetadata: metadata{
+				namespace:     containerInfo.Namespace,
+				podName:       containerInfo.PodName,
+				containerName: containerInfo.ContainerName,
+				deviceName:    string(deviceName),
+				metricName:    metricName,
+			},
+		}
 
 		s.fillMetric(containerMetric, ci.TypeContainerEFA, containerInfo.Namespace, containerInfo.PodName,
 			containerInfo.ContainerName, string(deviceName), store.timestamp, counters)
