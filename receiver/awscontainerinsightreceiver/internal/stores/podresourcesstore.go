@@ -114,8 +114,6 @@ func (p *PodResourcesStore) updateMaps() {
 
 	devicePods, err := p.podResourcesClient.ListPods()
 
-	p.logger.Debug("listed pod resources", zap.Any("devicePods", devicePods), zap.Error(err))
-
 	if err != nil {
 		p.logger.Error(fmt.Sprintf("Error getting pod resources: %v", err))
 		return
