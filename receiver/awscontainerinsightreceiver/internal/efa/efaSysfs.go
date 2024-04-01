@@ -95,6 +95,7 @@ type efaCounters struct {
 }
 
 func NewEfaSyfsScraper(logger *zap.Logger, decorator stores.Decorator, podResourcesStore podResourcesStore) *Scraper {
+	logger.Debug("NewEfaSyfsScraper")
 	ctx, cancel := context.WithCancel(context.Background())
 	podResourcesStore.AddResourceName(efaK8sResourceName)
 	e := &Scraper{
@@ -129,12 +130,13 @@ func (s *Scraper) Shutdown() {
 func (s *Scraper) GetMetrics() []pmetric.Metrics {
 	var result []pmetric.Metrics
 
+	// so it's technically
+
 	store := s.store
+	s.logger.Debug("going to populate metrics from devices", zap.Int("numDevices", len(*store.devices)))
 	for deviceName, counters := range *store.devices {
 		containerInfo := s.podResourcesStore.GetContainerInfo(string(deviceName), efaK8sResourceName)
-		if containerInfo == nil {
-			continue
-		}
+		s.logger.Debug("containerInfo for device", zap.String("deviceName", string(deviceName)), zap.Any("containerInfo", containerInfo))
 
 		containerMetric := stores.NewCIMetric(ci.TypeContainerEFA, s.logger)
 		podMetric := stores.NewCIMetric(ci.TypePodEFA, s.logger)
@@ -166,6 +168,7 @@ func (s *Scraper) GetMetrics() []pmetric.Metrics {
 		}
 	}
 
+	s.logger.Debug("returning metrics from GetMetrics\n", zap.Int("numMetrics", len(result)))
 	return result
 }
 
@@ -215,6 +218,7 @@ func (s *Scraper) init() {
 }
 
 func (s *Scraper) startScrape(ctx context.Context) {
+	s.logger.Debug("startScrape")
 	ticker := time.NewTicker(s.collectionInterval)
 	defer ticker.Stop()
 
@@ -232,7 +236,9 @@ func (s *Scraper) startScrape(ctx context.Context) {
 }
 
 func (s *Scraper) scrape() error {
+	s.logger.Debug("scrape")
 	exists, err := s.sysFsReader.EfaDataExists()
+	s.logger.Debug("EfaDataExists", zap.Bool("exists", exists), zap.Error(err))
 	if err != nil {
 		return err
 	}
@@ -337,8 +343,10 @@ func (r *sysfsReaderImpl) EfaDataExists() (bool, error) {
 	info, err := os.Stat(efaPath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			fmt.Printf("efaPath does not exist\n")
 			return false, nil
 		}
+		fmt.Printf("got error reading efaPath: %v\n", err)
 		return false, err
 	}
 
@@ -358,6 +366,7 @@ func (r *sysfsReaderImpl) ListDevices() ([]efaDeviceName, error) {
 	}
 
 	result := make([]efaDeviceName, 0)
+	fmt.Printf("found entries at efaPath: %v\n", dirs)
 	for _, dir := range dirs {
 		if !dir.IsDir() && dir.Type()&os.ModeSymlink == 0 {
 			continue
@@ -375,6 +384,7 @@ func (r *sysfsReaderImpl) ListPorts(deviceName efaDeviceName) ([]string, error) 
 		return nil, fmt.Errorf("failed to list EFA ports at %q: %w", portsPath, err)
 	}
 
+	fmt.Printf("found ports in EFA device %s: %v\n", string(deviceName), portDirs)
 	result := make([]string, 0)
 	for _, dir := range portDirs {
 		if !dir.IsDir() {
