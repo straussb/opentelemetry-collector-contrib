@@ -130,7 +130,7 @@ func (s *Scraper) GetMetrics() []pmetric.Metrics {
 	var result []pmetric.Metrics
 
 	store := s.store
-	if store == nil || (*store).devices == nil {
+	if store == nil || store.devices == nil {
 		return result
 	}
 	for deviceName, counters := range *store.devices {
